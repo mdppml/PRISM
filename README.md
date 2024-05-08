@@ -21,4 +21,5 @@ The main.cpp file should be executed to perform the variant filtering process fo
 ./main
 
 The number of samples and variants can be determined using numberOfSamples and numberOfVariants variables in saveData.h file for experiments. 
+
 Also, the number of threads can be determined using omp_set_num_threads(1); in main.cpp file.
