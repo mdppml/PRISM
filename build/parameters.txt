@@ -1,1 +1,4 @@
-
+M=sample_1.txt
+F=sample_2.txt
+AC=sample_3.txt
+UC=sample_4.txt,sample_c.txt
