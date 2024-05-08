@@ -7,13 +7,17 @@ OpenFHE Library Installation:
 The code can be executed using the following commands:
 
 cd build
+
 cmake -DWITH_INTEL_HEXL=ON DWITH_NTL=ON -DWITH_TCM=ON -DWITH_OPENMP=ON  ..
+
 make
 
 The encrypt.cpp file should be executed to generate and encrypt the sample data for experiments using the following command.
+
 ./encrypt
 
 The main.cpp file should be executed to perform the variant filtering process for encrypted samples using the following command.
+
 ./main
 
 The number of samples and variants can be determined using numberOfSamples and numberOfVariants variables in saveData.h file for experiments. 
