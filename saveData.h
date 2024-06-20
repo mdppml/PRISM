@@ -16,7 +16,7 @@ using namespace lbcrypto;
 using namespace std;
 using namespace std::chrono;
 const string DATAFOLDER = "experimentData";
-const int numberOfSamples = 16;
+const int numberOfSamples = 8;
 const int numberOfVariants = 100000;
 const int blockSize = 25000;
 
@@ -237,10 +237,10 @@ void encryptVCFData(string fileName, CryptoContext<DCRTPoly> cryptoContext, Publ
 }
 
 
-void generateCryptoContext(vector<string> fileNames){
+void generateCryptoContext(vector<string> fileNames, int multDepth){
     CCParams<CryptoContextBFVRNS> parameters;
     parameters.SetPlaintextModulus(7340033);
-    parameters.SetMultiplicativeDepth(1);
+    parameters.SetMultiplicativeDepth(multDepth);
     parameters.SetRingDim(65536);
 
     CryptoContext<DCRTPoly> cryptoContext = GenCryptoContext(parameters);
