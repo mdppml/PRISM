@@ -20,7 +20,7 @@ using namespace std;
 using namespace std::chrono;
 
 
-Ciphertext<DCRTPoly> filterVariants(std::vector<string> filenames, std::vector<Ciphertext<DCRTPoly>> query, CryptoContext<DCRTPoly> cc, Ciphertext<DCRTPoly> ciphertextNot){
+Ciphertext<DCRTPoly> filterVariants(std::vector<string> filenames, std::vector<Ciphertext<DCRTPoly>> query, CryptoContext<DCRTPoly> cc, Ciphertext<DCRTPoly> ciphertextNot, Ciphertext<DCRTPoly> ciphertextNumSamples){
 
     std::vector<Ciphertext<DCRTPoly>> ciphertextsVec;
    
@@ -39,8 +39,9 @@ Ciphertext<DCRTPoly> filterVariants(std::vector<string> filenames, std::vector<C
 
 
     auto ciphertextsXOR_0 = cc->EvalAddMany(ciphertextsXOR);
+    auto ciphertext_Result =cc->EvalSub(ciphertextsXOR_0, ciphertextNumSamples);
 
-    return ciphertextsXOR_0;
+    return ciphertext_Result;
 
 }
 
@@ -81,15 +82,9 @@ int main() {
     readEvalRotationKeys(cc);
     readEvalSumKeys(cc);
 
-    std::vector<int64_t> elementNot;
+    auto ciphertextNot = getCiphertextNot(cc, pk);
 
-    for (int i = 0; i < blockSize; i++){
-
-        elementNot.push_back(1);
-    }
-
-    Plaintext plaintextNot = cc->MakePackedPlaintext(elementNot);
-    auto ciphertextNot = cc->Encrypt(pk, plaintextNot);
+    auto ciphertextNumSamples = getCiphertextNumSamples(cc,pk);
 
 
     //Get query
@@ -110,7 +105,7 @@ int main() {
 
     for (int i = 0; i < numberOfVariants/blockSize; i++){
 
-        Ciphertext<DCRTPoly> ciphertextsFilteringResult = filterVariants(sampleFilenames[i], query, cc, ciphertextNot);
+        Ciphertext<DCRTPoly> ciphertextsFilteringResult = filterVariants(sampleFilenames[i], query, cc, ciphertextNot, ciphertextNumSamples);
         filteringResults.push_back(ciphertextsFilteringResult);
 
     }
@@ -149,7 +144,7 @@ int main() {
 
         Plaintext plaintextResult = getResult(cc, sk, filteringResults[i]);
         for (int j = 0; j < blockSize; j++){
-            if (plaintextResult->GetPackedValue()[j] == numberOfSamples * 2){
+            if (plaintextResult->GetPackedValue()[j] == 0){
                 count++;
             }
         } 
