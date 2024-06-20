@@ -38,6 +38,15 @@ void saveEncryptedResult(string fileName, vector<Ciphertext<DCRTPoly>> result){
     }
 }
 
+void saveEncryptedResult2(string fileName, Ciphertext<DCRTPoly> result){
+
+    if (!Serial::SerializeToFile(DATAFOLDER + fileName, result, SerType::BINARY)) {
+        std::cerr << "Error writing serialization of ciphertext to result.txt" << std::endl;
+    }else{
+        std::cout << "The result has been serialized." << std::endl;
+    }
+}
+
 void saveCryptoContext(CryptoContext<DCRTPoly> cryptoContext){
 
     if (!Serial::SerializeToFile(DATAFOLDER + "/cryptocontext.txt", cryptoContext, SerType::BINARY)) {
