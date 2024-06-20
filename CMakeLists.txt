@@ -48,5 +48,8 @@ set(CMAKE_CXX_STANDARD 17)
 ###
 ### EXAMPLE:
 ### add_executable( test demo-simple-example.cpp )
-add_executable(main main.cpp )
-add_executable(encrypt encrypt.cpp )
+add_executable(main main.cpp)
+add_executable(main2 main2.cpp)
+add_executable(encrypt encrypt.cpp)
+add_executable(denovo denovo.cpp)
+add_executable(denovo2 denovo2.cpp)
