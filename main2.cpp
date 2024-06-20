@@ -164,7 +164,7 @@ int main() {
 
     PrivateKey<DCRTPoly> sk = readSecretKey("/key-private.txt");
 
-    saveEncryptedResult("/result.txt", filteringResults);
+    saveEncryptedResult("/result.txt", result);
 
     //Get the result (number of variants matching the query)
 
