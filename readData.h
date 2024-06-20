@@ -90,6 +90,39 @@ CryptoContext<DCRTPoly> readCryptoContext(string fileName){
 
 }
 
+Ciphertext<DCRTPoly> getCiphertextNot(CryptoContext<DCRTPoly> cc,  PublicKey<DCRTPoly> pk){
+
+    std::vector<int64_t> elementNot;
+
+    for (int i = 0; i < blockSize; i++){
+
+        elementNot.push_back(1);
+    }
+
+    Plaintext plaintextNot = cc->MakePackedPlaintext(elementNot);
+    auto ciphertextNot = cc->Encrypt(pk, plaintextNot);
+
+    return ciphertextNot;
+
+}
+
+Ciphertext<DCRTPoly> getCiphertextNumSamples(CryptoContext<DCRTPoly> cc,  PublicKey<DCRTPoly> pk){
+
+    std::vector<int64_t> elementNumSamples;
+
+    for (int i = 0; i < blockSize; i++){
+
+        elementNumSamples.push_back(numberOfSamples * 2);
+    }
+
+    Plaintext plaintextNumSamples = cc->MakePackedPlaintext(elementNumSamples);
+    auto ciphertextNumSamples = cc->Encrypt(pk, plaintextNumSamples);
+
+    return ciphertextNumSamples;
+
+}
+
+
 std::vector<Ciphertext<DCRTPoly>> getQuery(CryptoContext<DCRTPoly> cc, PublicKey<DCRTPoly> pk){
     Ciphertext<DCRTPoly> query;
     std::vector<Ciphertext<DCRTPoly>> queryVec;
@@ -134,6 +167,40 @@ vector<vector<string>> getSampleFilenames(){
             if (i < 5){
                 sampleFilenames0.push_back("/sample_" + to_string(i) + "_ct_" + to_string(j) + "_0.txt");
                 sampleFilenames0.push_back("/sample_" + to_string(i) + "_ct_" + to_string(j) + "_1.txt");
+            }else{
+                sampleFilenames0.push_back("/sample_5_ct_" + to_string(j) + "_0.txt");
+                sampleFilenames0.push_back("/sample_5_ct_" + to_string(j) + "_1.txt");
+            }
+
+        }
+
+        sampleFilenames.push_back(sampleFilenames0);
+    }
+
+    return sampleFilenames;
+
+}
+
+vector<vector<string>> getSampleFilenamesDeNovo(){
+
+    vector<vector<string>> sampleFilenames;
+
+    for (int j = 1; j < numberOfVariants/blockSize + 1; j++){
+
+        vector<string> sampleFilenames0;
+       
+        for (int i = 1; i < numberOfSamples + 1; i++){
+
+            if (i < numberOfSamples/2 + 1){
+                int k = i;
+                if (k > 4){
+                    k = k % 4;
+                    if (k == 0){
+                        k = 4;
+                    }
+                }
+                sampleFilenames0.push_back("/sample_" + to_string(k) + "_ct_" + to_string(j) + "_0.txt");
+                sampleFilenames0.push_back("/sample_" + to_string(k) + "_ct_" + to_string(j) + "_1.txt");
             }else{
                 sampleFilenames0.push_back("/sample_5_ct_" + to_string(j) + "_0.txt");
                 sampleFilenames0.push_back("/sample_5_ct_" + to_string(j) + "_1.txt");
