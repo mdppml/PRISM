@@ -24,9 +24,9 @@ int main() {
     generateData();
     generateSamples();
 
-
+    int multDepth = 1;
     vector<string> fileNames = readParameters("parameters.txt");
 
-    generateCryptoContext(fileNames);
+    generateCryptoContext(fileNames, multDepth);
 
 }
