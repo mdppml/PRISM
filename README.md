@@ -4,7 +4,7 @@ OpenFHE Library Installation:
 
 <https://openfhe-development.readthedocs.io/en/latest/sphinx_rsts/intro/installation/installation.html>
 
-## Executable Files:
+## Executable Files
 
 - main.cpp: This file contains the method that uses fewer multiplication operations for recessive and dominant inheritance models.
 
