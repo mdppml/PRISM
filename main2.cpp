@@ -20,7 +20,7 @@ using namespace std;
 using namespace std::chrono;
 
 
-Ciphertext<DCRTPoly> filterVariants(std::vector<string> filenames, std::vector<Ciphertext<DCRTPoly>> query, CryptoContext<DCRTPoly> cc, Ciphertext<DCRTPoly> ciphertextNot, Ciphertext<DCRTPoly> ciphertextNumSamples){
+Ciphertext<DCRTPoly> filterVariants(std::vector<string> filenames, std::vector<Ciphertext<DCRTPoly>> query, CryptoContext<DCRTPoly> cc, Ciphertext<DCRTPoly> ciphertextNot){
 
     std::vector<Ciphertext<DCRTPoly>> ciphertextsVec;
    
@@ -83,8 +83,6 @@ int main() {
 
     auto ciphertextNot = getCiphertextNot(cc, pk);
 
-    auto ciphertextNumSamples = getCiphertextNumSamples(cc,pk);
-
 
     //Get query
 
@@ -104,7 +102,7 @@ int main() {
 
     for (int i = 0; i < numberOfVariants/blockSize; i++){
 
-        Ciphertext<DCRTPoly> ciphertextsFilteringResult = filterVariants(sampleFilenames[i], query, cc, ciphertextNot, ciphertextNumSamples);
+        Ciphertext<DCRTPoly> ciphertextsFilteringResult = filterVariants(sampleFilenames[i], query, cc, ciphertextNot);
         filteringResults.push_back(ciphertextsFilteringResult);
 
     }
