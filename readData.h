@@ -122,6 +122,22 @@ Ciphertext<DCRTPoly> getCiphertextNumSamples(CryptoContext<DCRTPoly> cc,  Public
 
 }
 
+Ciphertext<DCRTPoly> getCiphertextNumSamplesDeNovo(CryptoContext<DCRTPoly> cc,  PublicKey<DCRTPoly> pk){
+
+    std::vector<int64_t> elementNumSamples;
+
+    for (int i = 0; i < blockSize; i++){
+
+        elementNumSamples.push_back(numberOfSamples);
+    }
+
+    Plaintext plaintextNumSamples = cc->MakePackedPlaintext(elementNumSamples);
+    auto ciphertextNumSamples = cc->Encrypt(pk, plaintextNumSamples);
+
+    return ciphertextNumSamples;
+
+}
+
 
 std::vector<Ciphertext<DCRTPoly>> getQuery(CryptoContext<DCRTPoly> cc, PublicKey<DCRTPoly> pk){
     Ciphertext<DCRTPoly> query;
