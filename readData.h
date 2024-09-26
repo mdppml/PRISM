@@ -170,6 +170,22 @@ std::vector<Ciphertext<DCRTPoly>> getQuery(CryptoContext<DCRTPoly> cc, PublicKey
     return queryVec;
 }
 
+Ciphertext<DCRTPoly> getRandomVector(CryptoContext<DCRTPoly> cc, PublicKey<DCRTPoly> pk, size_t blockSize, int minValue, int maxValue) {
+
+    std::vector<int64_t> randomVec(blockSize);
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(minValue, maxValue);
+
+    std::generate(randomVec.begin(), randomVec.end(), [&]() { return dis(gen); });
+
+    Plaintext randomPlaintext = cc->MakePackedPlaintext(randomVec);
+    auto randomCiphertext = cc->Encrypt(pk, randomPlaintext);
+
+    return randomCiphertext;
+}
+
 vector<vector<string>> getSampleFilenames(){
 
     vector<vector<string>> sampleFilenames;
