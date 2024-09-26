@@ -91,9 +91,14 @@ int main() {
 
     std::vector<Ciphertext<DCRTPoly>> query = getQuery(cc, pk);
 
+    //Get random vector 
+
+    auto randomCiphertext = getRandomVector(cc, pk, blockSize, 1, 1000);
+
     //Get sample filenames
 
     vector<vector<string>> sampleFilenames = getSampleFilenames();
+    PrivateKey<DCRTPoly> sk = readSecretKey("/key-private.txt");
 
     auto startFiltering = high_resolution_clock::now();
 
@@ -106,9 +111,17 @@ int main() {
     for (int i = 0; i < numberOfVariants/blockSize; i++){
 
         Ciphertext<DCRTPoly> ciphertextsFilteringResult = filterVariants(sampleFilenames[i], query, cc, ciphertextNot, ciphertextNumSamples);
-        filteringResults.push_back(ciphertextsFilteringResult);
+
+        auto ciphertextsFilteringResultRandom = cc->EvalMult(ciphertextsFilteringResult, randomCiphertext);  
+        filteringResults.push_back(ciphertextsFilteringResultRandom);
 
     }
+
+    //Shuffle the ciphertexts in the filteringResults vector
+
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(filteringResults.begin(), filteringResults.end(), g);
 
     auto endFiltering = high_resolution_clock::now();
 
@@ -130,7 +143,7 @@ int main() {
 
     //Read the secret key
 
-    PrivateKey<DCRTPoly> sk = readSecretKey("/key-private.txt");
+    //PrivateKey<DCRTPoly> sk = readSecretKey("/key-private.txt");
 
     saveEncryptedResult("/result.txt", filteringResults);
 
