@@ -107,15 +107,17 @@ int main() {
 
     auto ciphertextNumSamples = getCiphertextNumSamplesDeNovo(cc,pk);
 
+    //Get random vector 
+
+    auto randomCiphertext = getRandomVector(cc, pk, blockSize, 1, 1000);
 
     //Get sample filenames
 
     vector<vector<string>> sampleFilenames = getSampleFilenamesDeNovo();
-    
 
     auto startFiltering = high_resolution_clock::now();
 
-    std::vector<Ciphertext<DCRTPoly>> filteringResults;
+    std::vector<vector<Ciphertext<DCRTPoly>>> filteringResults;
 
     //Filter variants in each block
 
@@ -124,10 +126,20 @@ int main() {
     for (int i = 0; i < numberOfVariants/blockSize; i++){
 
         std::vector<Ciphertext<DCRTPoly>> ciphertextsFilteringResult = filterVariantsDeNovo(sampleFilenames[i], cc, ciphertextNot, ciphertextNumSamples);
-        filteringResults.push_back(ciphertextsFilteringResult[0]);
-        filteringResults.push_back(ciphertextsFilteringResult[1]);
+        std::vector<Ciphertext<DCRTPoly>> ciphertextsFilteringResultRandom;
+        auto ciphertextsFilteringResultRandom1 = cc->EvalMult(ciphertextsFilteringResult[0], randomCiphertext);  
+        auto ciphertextsFilteringResultRandom2 = cc->EvalMult(ciphertextsFilteringResult[1], randomCiphertext); 
+        ciphertextsFilteringResultRandom.push_back(ciphertextsFilteringResultRandom1);
+        ciphertextsFilteringResultRandom.push_back(ciphertextsFilteringResultRandom2);
+        filteringResults.push_back(ciphertextsFilteringResultRandom);
 
     }
+
+    //Shuffle the ciphertexts in the filteringResults vector
+
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(filteringResults.begin(), filteringResults.end(), g);
 
     auto endFiltering = high_resolution_clock::now();
 
@@ -151,7 +163,7 @@ int main() {
 
     PrivateKey<DCRTPoly> sk = readSecretKey("/key-private.txt");
 
-    saveEncryptedResult("/result.txt", filteringResults);
+    saveEncryptedResultDeNovo("/result.txt", filteringResults);
 
     //Get the result (number of variants matching the query)
 
@@ -159,12 +171,12 @@ int main() {
 
     int count = 0;
 
-    for (int i = 0; i < numberOfVariants/blockSize * 2; i = i + 2){
+    for (int i = 0; i < numberOfVariants/blockSize; i = i + 1){
 
-        Plaintext plaintextResult0 = getResult(cc, sk, filteringResults[i]);
-        Plaintext plaintextResult1 = getResult(cc, sk, filteringResults[i+1]);
+        Plaintext plaintextResult0 = getResult(cc, sk, filteringResults[i][0]);
+        Plaintext plaintextResult1 = getResult(cc, sk, filteringResults[i][1]);
         for (int j = 0; j < blockSize; j++){
-            if (plaintextResult0->GetPackedValue()[j] == 0|| plaintextResult1->GetPackedValue()[j] == 0){
+            if (plaintextResult0->GetPackedValue()[j] == 0 || plaintextResult1->GetPackedValue()[j] == 0){
                 count++;
             }
         } 
