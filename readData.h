@@ -4,7 +4,6 @@
 #include "key/key-ser.h"
 #include "scheme/bfvrns/bfvrns-ser.h"
 #include "scheme/bgvrns/bgvrns-ser.h"
-#include "logger.hpp"
 #include <omp.h>
 #include <iostream>
 #include <fstream>
