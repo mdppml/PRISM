@@ -4,7 +4,6 @@
 #include "key/key-ser.h"
 #include "scheme/bfvrns/bfvrns-ser.h"
 #include "scheme/bgvrns/bgvrns-ser.h"
-#include "logger.hpp"
 #include <omp.h>
 #include <iostream>
 #include <fstream>
@@ -15,9 +14,9 @@
 using namespace lbcrypto;
 using namespace std;
 using namespace std::chrono;
-const string DATAFOLDER = "experimentData";
-const int numberOfSamples = 8;
-const int numberOfVariants = 100000;
+const string DATAFOLDER = "/dev/shm/experimentData";
+const int numberOfSamples = 4;
+const int numberOfVariants = 6400000;
 const int blockSize = 25000;
 
 void saveEncryptedData(string fileName, Ciphertext<DCRTPoly> ciphertext){
@@ -301,7 +300,7 @@ void generateCryptoContext(vector<string> fileNames, int multDepth){
     //Encrypt sample data
 
 
-    for (int i = 0; i < fileNames.size(); i++){
+    for (int i = 0; i < static_cast<int>(fileNames.size()); i++){
        
         string sampleFileName = fileNames[i];
         encryptVCFData(sampleFileName, cryptoContext, keyPair.publicKey, i+1);
