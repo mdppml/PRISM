@@ -6,7 +6,6 @@
 #include "scheme/bgvrns/bgvrns-ser.h"
 #include "saveData.h"
 #include "readData.h"
-#include "logger.hpp"
 #include <omp.h>
 #include <iostream>
 #include <fstream>
@@ -70,7 +69,7 @@ Plaintext getResult(CryptoContext<DCRTPoly> cc, PrivateKey<DCRTPoly> sk, Ciphert
 
 int main() {
 
-    omp_set_num_threads(1);
+    omp_set_num_threads(64);
 
 
     // Read the cryptocontext and keys
