@@ -14,8 +14,8 @@
 using namespace lbcrypto;
 using namespace std;
 using namespace std::chrono;
-const string DATAFOLDER = "/dev/shm/experimentData";
-const int numberOfSamples = 4;
+const string DATAFOLDER = "experimentData";
+const int numberOfSamples = 8;
 const int numberOfVariants = 6400000;
 const int blockSize = 25000;
 
