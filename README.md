@@ -1,4 +1,4 @@
-# Privacy Preserving Rare Disease Analysis with Fully Homomorphic Encryption
+# PRISM: Privacy-preserving Rare Disease Analysis using Fully Homomorphic Encryption
 
 OpenFHE Library Installation:
 
