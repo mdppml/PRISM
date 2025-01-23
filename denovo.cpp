@@ -91,7 +91,7 @@ Plaintext getResult(CryptoContext<DCRTPoly> cc, PrivateKey<DCRTPoly> sk, Ciphert
 
 int main() {
 
-    omp_set_num_threads(64);
+    omp_set_num_threads(4);
 
     // Read the cryptocontext and keys
 
@@ -116,7 +116,7 @@ int main() {
 
     auto startFiltering = high_resolution_clock::now();
 
-    std::vector<vector<Ciphertext<DCRTPoly>>> filteringResults;
+    std::vector<Ciphertext<DCRTPoly>> filteringResults;
 
     //Filter variants in each block
 
@@ -125,11 +125,8 @@ int main() {
     for (int i = 0; i < numberOfVariants/blockSize; i++){
 
         std::vector<Ciphertext<DCRTPoly>> ciphertextsFilteringResult = filterVariantsDeNovo(sampleFilenames[i], cc, ciphertextNot, ciphertextNumSamples);
-        std::vector<Ciphertext<DCRTPoly>> ciphertextsFilteringResultRandom;
-        auto ciphertextsFilteringResultRandom1 = cc->EvalMult(ciphertextsFilteringResult[0], randomCiphertext);  
-        auto ciphertextsFilteringResultRandom2 = cc->EvalMult(ciphertextsFilteringResult[1], randomCiphertext); 
-        ciphertextsFilteringResultRandom.push_back(ciphertextsFilteringResultRandom1);
-        ciphertextsFilteringResultRandom.push_back(ciphertextsFilteringResultRandom2);
+        auto ciphertextFilteringMulResult = cc->EvalMult(ciphertextsFilteringResult[0], ciphertextsFilteringResult[1]);
+        auto ciphertextsFilteringResultRandom = cc->EvalMult(ciphertextFilteringMulResult, randomCiphertext); 
         filteringResults.push_back(ciphertextsFilteringResultRandom);
 
     }
@@ -162,9 +159,9 @@ int main() {
 
     PrivateKey<DCRTPoly> sk = readSecretKey("/key-private.txt");
 
-    saveEncryptedResultDeNovo("/result.txt", filteringResults);
+    saveEncryptedResult("/result.txt", filteringResults);
 
-    //Get the result (number of variants matching the query)
+    //Get the result (number of variants matching the de novo case)
 
     auto startDecryption = high_resolution_clock::now();
 
@@ -172,10 +169,9 @@ int main() {
 
     for (int i = 0; i < numberOfVariants/blockSize; i = i + 1){
 
-        Plaintext plaintextResult0 = getResult(cc, sk, filteringResults[i][0]);
-        Plaintext plaintextResult1 = getResult(cc, sk, filteringResults[i][1]);
+        Plaintext plaintextResult = getResult(cc, sk, filteringResults[i]);
         for (int j = 0; j < blockSize; j++){
-            if (plaintextResult0->GetPackedValue()[j] == 0 || plaintextResult1->GetPackedValue()[j] == 0){
+            if (plaintextResult->GetPackedValue()[j] == 0){
                 count++;
             }
         } 
