@@ -4,7 +4,7 @@
 
 - OpenFHE Library Installation:
 
-<https://openfhe-development.readthedocs.io/en/latest/sphinx_rsts/intro/installation/installation.html>
+  <https://openfhe-development.readthedocs.io/en/latest/sphinx_rsts/intro/installation/installation.html>
 
 ## Executable Files
 
