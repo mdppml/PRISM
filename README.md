@@ -2,9 +2,9 @@
 
 ## Requirements
 
-OpenFHE Library Installation:
+- OpenFHE Library Installation:
 
-- <https://openfhe-development.readthedocs.io/en/latest/sphinx_rsts/intro/installation/installation.html>
+<https://openfhe-development.readthedocs.io/en/latest/sphinx_rsts/intro/installation/installation.html>
 
 ## Executable Files
 
@@ -25,6 +25,7 @@ OpenFHE Library Installation:
 - Also, the number of threads can be determined using omp_set_num_threads(1); in recessive_dominant_add-in.cpp, recessive_dominant_mul-in.cpp, denovo_add-in.cpp and denovo_mul-in.cpp files.
 
 - The code can be configured and compiled using the following commands:
+- 
 ```
 cd build
 cmake -DWITH_INTEL_HEXL=ON DWITH_NTL=ON -DWITH_TCM=ON -DWITH_OPENMP=ON  ..
