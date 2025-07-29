@@ -75,12 +75,44 @@ Ciphertext<DCRTPoly> sum(CryptoContext<DCRTPoly> cc, Ciphertext<DCRTPoly> sumRes
 }
 
 //Decrypt the sum result
-Plaintext getResult(CryptoContext<DCRTPoly> cc, PrivateKey<DCRTPoly> sk, Ciphertext<DCRTPoly> encryptedResult){
+Plaintext getResult(CryptoContext<DCRTPoly> cc, vector<PrivateKey<DCRTPoly>> sk, Ciphertext<DCRTPoly> encryptedResult){
 
     Plaintext plaintextResult;
-    cc->Decrypt(sk, encryptedResult, &plaintextResult);
+    std::vector<Ciphertext<DCRTPoly>> partialCiphertextVec;
+
+    #pragma omp parallel for 
+    for (size_t i = 0; i < sk.size(); ++i) {
+
+        if (i == 0) {
+            partialCiphertextVec.push_back(cc->MultipartyDecryptLead({encryptedResult}, sk[i])[0]);
+        } else {
+            partialCiphertextVec.push_back(cc->MultipartyDecryptMain({encryptedResult}, sk[i])[0]);
+        }
+    }
+
+
+    // Two partial decryptions are combined
+    cc->MultipartyDecryptFusion(partialCiphertextVec, &plaintextResult);
+
     return plaintextResult;
    
+}
+
+void decrypt(CryptoContext<DCRTPoly> cc, vector<string> skFiles, string resultFile){
+
+    vector<PrivateKey<DCRTPoly>> skVec;
+    
+    #pragma omp parallel for
+    for (size_t i = 0; i < skFiles.size(); i++){
+        skVec.push_back(readSecretKey(skFiles[i]));
+    }
+
+    auto result = readResult2(resultFile);
+
+    Plaintext plaintextResult = getResult(cc, skVec, result);
+    
+    std::cout << "Result: " << plaintextResult->GetPackedValue()[0] << std::endl; 
+
 }
 
 
@@ -174,9 +206,6 @@ int main() {
     cout <<  "Duration (Sum): " << minutesSum << " minute(s) " << secondsSum << " second(s) " << millisecondsSum << " millisecond(s)"<< endl;
     cout <<  "Duration (Sum): " << durationSum.count() << endl;
 
-    //Read the secret key
-
-    PrivateKey<DCRTPoly> sk = readSecretKey("/key-private.txt");
 
     saveEncryptedResult2("/result.txt", result);
 
@@ -186,7 +215,14 @@ int main() {
 
     // Decrypt the sum result
 
-    Plaintext plaintextResult = getResult(cc, sk, result);
+    std::vector<std::string> skVec;
+
+    #pragma omp parallel for 
+    for (int i = 1; i <= numberOfParties; ++i) {
+        skVec.push_back("/key-private-" + std::to_string(i) + ".txt");
+    }
+    
+    decrypt(cc, skVec, "/result.txt");
 
     auto endDecryption = high_resolution_clock::now();
 
@@ -204,10 +240,6 @@ int main() {
 
     cout <<  "Duration (Decryption): " << minutesDecryption << " minute(s) " << secondsDecryption << " second(s) " << millisecondsDecryption << " millisecond(s)" << endl;
     cout <<  "Duration (Decryption): " << durationDecryption.count() << endl;
-
-    // Display the result
-
-    std::cout << "Result: " << plaintextResult->GetPackedValue()[0] << std::endl;
 
     return 0;
 
