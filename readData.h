@@ -24,6 +24,22 @@ Ciphertext<DCRTPoly> readEncryptedData(string fileName){
 
 }
 
+vector<Ciphertext<DCRTPoly>> readResult(string fileName){
+
+    vector<Ciphertext<DCRTPoly>> ciphertextRead;
+    Serial::DeserializeFromFile(DATAFOLDER + fileName, ciphertextRead, SerType::BINARY);
+    return ciphertextRead;
+
+}
+
+Ciphertext<DCRTPoly> readResult2(string fileName){
+
+    Ciphertext<DCRTPoly> ciphertextRead;
+    Serial::DeserializeFromFile(DATAFOLDER + fileName, ciphertextRead, SerType::BINARY);
+    return ciphertextRead;
+
+}
+
 PublicKey<DCRTPoly> readPublicKey(string fileName){
     PublicKey<DCRTPoly> pk;
     if (Serial::DeserializeFromFile(DATAFOLDER + fileName, pk, SerType::BINARY) == false) {
