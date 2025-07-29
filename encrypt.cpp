@@ -6,7 +6,6 @@
 #include "scheme/bgvrns/bgvrns-ser.h"
 #include "saveData.h"
 #include "readData.h"
-#include "logger.hpp"
 #include <omp.h>
 #include <iostream>
 #include <fstream>
@@ -24,9 +23,9 @@ int main() {
     generateData();
     generateSamples();
 
-    int multDepth = 2;
+    int multDepth = 12;
     vector<string> fileNames = readParameters("parameters.txt");
 
-    generateCryptoContext(fileNames, multDepth);
+    generateCryptoContext4P(fileNames, multDepth);
 
 }
