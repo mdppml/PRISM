@@ -14,10 +14,11 @@
 using namespace lbcrypto;
 using namespace std;
 using namespace std::chrono;
-const string DATAFOLDER = "experimentData";
-const int numberOfSamples = 8;
-const int numberOfVariants = 6400000;
+const string DATAFOLDER = "/dev/shm/experimentData";
+const int numberOfSamples = 16;
+const int numberOfVariants = 1600000;
 const int blockSize = 25000;
+const int numberOfParties = 4;
 
 void saveEncryptedData(string fileName, Ciphertext<DCRTPoly> ciphertext){
 
@@ -29,15 +30,6 @@ void saveEncryptedData(string fileName, Ciphertext<DCRTPoly> ciphertext){
 }
 
 void saveEncryptedResult(string fileName, vector<Ciphertext<DCRTPoly>> result){
-
-    if (!Serial::SerializeToFile(DATAFOLDER + fileName, result, SerType::BINARY)) {
-        std::cerr << "Error writing serialization of ciphertext to result.txt" << std::endl;
-    }else{
-        std::cout << "The result has been serialized." << std::endl;
-    }
-}
-
-void saveEncryptedResultDeNovo(string fileName, vector<vector<Ciphertext<DCRTPoly>>> result){
 
     if (!Serial::SerializeToFile(DATAFOLDER + fileName, result, SerType::BINARY)) {
         std::cerr << "Error writing serialization of ciphertext to result.txt" << std::endl;
@@ -78,18 +70,18 @@ void savePublicKey(PublicKey<DCRTPoly> publicKey){
    
 }
 
-void saveSecretKey(PrivateKey<DCRTPoly> secretKey){
+void saveSecretKey(PrivateKey<DCRTPoly> secretKey, int keyId) {
+    
+    std::string filename = DATAFOLDER + "/key-private-" + std::to_string(keyId) + ".txt";
 
-    if (!Serial::SerializeToFile(DATAFOLDER + "/key-private.txt", secretKey, SerType::BINARY)) {
-        std::cerr << "Error writing serialization of private key to key-private.txt" << std::endl;
-    }else{
-        std::cout << "The secret key has been serialized." << std::endl;
+    if (!Serial::SerializeToFile(filename, secretKey, SerType::BINARY)) {
+        std::cerr << "Error writing serialization of private key to " << filename << std::endl;
+    } else {
+        std::cout << "The secret key has been serialized to " << filename << std::endl;
     }
-   
-   
 }
 
-void saveRelinearizationKey(CryptoContext<DCRTPoly> cryptoContext){
+void saveMulKey(CryptoContext<DCRTPoly> cryptoContext){
     std::ofstream emkeyfile(DATAFOLDER + "/" + "key-eval-mult.txt", std::ios::out | std::ios::binary);
     if (emkeyfile.is_open()) {
         if (cryptoContext->SerializeEvalMultKey(emkeyfile, SerType::BINARY) == false) {
@@ -253,12 +245,88 @@ void encryptVCFData(string fileName, CryptoContext<DCRTPoly> cryptoContext, Publ
 
 }
 
+void generateCryptoContext2P(std::vector<std::string> fileNames, int multDepth) {
+    lbcrypto::CCParams<lbcrypto::CryptoContextBFVRNS> parameters;
+    parameters.SetPlaintextModulus(7340033);
+    parameters.SetMultiplicativeDepth(multDepth);
+    parameters.SetRingDim(65536);
+    // You might want to set other parameters for security, e.g., SetSecurityLevel, SetStandardDeviation, SetSecretKeyDist, SetBatchSize, SetDigitSize, SetScalingModSize, SetMultiplicationTechnique
+    // For simplicity, using only the ones you provided.
+    // parameters.SetSecurityLevel(lbcrypto::SecurityLevel::HEStd_128_classic);
 
-void generateCryptoContext(vector<string> fileNames, int multDepth){
+    lbcrypto::CryptoContext<lbcrypto::DCRTPoly> cryptoContext = lbcrypto::GenCryptoContext(parameters);
+   
+    std::cout << "Ring Dimension: " << cryptoContext->GetRingDimension() << std::endl;
+    // std::cout << "Security Level: " << parameters.GetSecurityLevel() << std::endl; // This might output 'Undefined' if not explicitly set
+
+    std::cout << "\np = " << cryptoContext->GetCryptoParameters()->GetPlaintextModulus() << std::endl;
+    std::cout << "n = " << cryptoContext->GetCryptoParameters()->GetElementParams()->GetCyclotomicOrder() / 2
+              << std::endl;
+    std::cout << "log2 q = "
+              << log2(cryptoContext->GetCryptoParameters()->GetElementParams()->GetModulus().ConvertToDouble())
+              << std::endl;
+   
+    cryptoContext->Enable(PKE);
+    cryptoContext->Enable(KEYSWITCH);
+    cryptoContext->Enable(LEVELEDSHE);
+    cryptoContext->Enable(ADVANCEDSHE);
+    cryptoContext->Enable(MULTIPARTY);
+
+    // Key Generation for 2 parties
+    lbcrypto::KeyPair<lbcrypto::DCRTPoly> keyPair1;
+    keyPair1 = cryptoContext->KeyGen();
+    auto keyPair2 = cryptoContext->MultipartyKeyGen(keyPair1.publicKey); // Party 2's key depends on Party 1's public key
+
+    // EvalMult Key Generation for 2 parties
+    auto evalMultKey1 = cryptoContext->KeySwitchGen(keyPair1.secretKey, keyPair1.secretKey);
+    auto evalMultKey2 = cryptoContext->MultiKeySwitchGen(keyPair2.secretKey, keyPair2.secretKey, evalMultKey1);
+
+    auto evalMult12 = cryptoContext->MultiAddEvalKeys(evalMultKey1, evalMultKey2, keyPair2.publicKey->GetKeyTag());
+
+    auto evalMult212 = cryptoContext->MultiMultEvalKey(keyPair2.secretKey, evalMult12, keyPair2.publicKey->GetKeyTag());
+    auto evalMult112 = cryptoContext->MultiMultEvalKey(keyPair1.secretKey, evalMult12, keyPair2.publicKey->GetKeyTag());
+    
+    auto evalMultFinal = cryptoContext->MultiAddEvalMultKeys(evalMult112, evalMult212, keyPair2.publicKey->GetKeyTag());
+
+    cryptoContext->InsertEvalMultKey({evalMultFinal});
+
+    // EvalSum Key Generation for 2 parties
+    cryptoContext->EvalSumKeyGen(keyPair1.secretKey);
+    auto evalSumKeys = std::make_shared<std::map<usint, EvalKey<DCRTPoly>>>(cryptoContext->GetEvalSumKeyMap(keyPair1.secretKey->GetKeyTag()));
+    auto evalSumKeys2 = cryptoContext->MultiEvalSumKeyGen(keyPair2.secretKey, evalSumKeys, keyPair2.publicKey->GetKeyTag());
+
+    auto evalSumKeysJoin = cryptoContext->MultiAddEvalSumKeys(evalSumKeys, evalSumKeys2, keyPair2.publicKey->GetKeyTag());
+    cryptoContext->InsertEvalSumKey(evalSumKeysJoin);
+
+    // Save the cryptocontext, encrypted data, public key and secret key
+    saveCryptoContext(cryptoContext);
+    savePublicKey(keyPair2.publicKey); // Save the final combined public key
+    saveSecretKey(keyPair1.secretKey, 1);
+    saveSecretKey(keyPair2.secretKey, 2);
+    saveMulKey(cryptoContext);
+    saveRotationKey(cryptoContext); // Assuming EvalSum implies rotations
+    saveSumKey(cryptoContext);
+
+    // Encrypt sample data
+    for (size_t i = 0; i < fileNames.size(); ++i){
+        std::string sampleFileName = fileNames[i];
+        encryptVCFData(sampleFileName, cryptoContext, keyPair2.publicKey, i + 1); // Encrypt with the final public key
+    }
+
+    // Clear the context and clear the keys
+    cryptoContext->ClearEvalMultKeys();
+    cryptoContext->ClearEvalAutomorphismKeys(); // EvalSum keys are automorphism keys
+    cryptoContext->ClearEvalSumKeys(); // This might be redundant if ClearEvalAutomorphismKeys clears them
+    lbcrypto::CryptoContextFactory<lbcrypto::DCRTPoly>::ReleaseAllContexts();
+}
+
+
+void generateCryptoContext4P(vector<string> fileNames, int multDepth){
     CCParams<CryptoContextBFVRNS> parameters;
     parameters.SetPlaintextModulus(7340033);
     parameters.SetMultiplicativeDepth(multDepth);
     parameters.SetRingDim(65536);
+    
 
     CryptoContext<DCRTPoly> cryptoContext = GenCryptoContext(parameters);
    
@@ -282,17 +350,53 @@ void generateCryptoContext(vector<string> fileNames, int multDepth){
     KeyPair<DCRTPoly> keyPair;
 
     keyPair = cryptoContext->KeyGen();
+    auto keyPair2 = cryptoContext->MultipartyKeyGen(keyPair.publicKey);
+    auto keyPair3 = cryptoContext->MultipartyKeyGen(keyPair2.publicKey);
+    auto keyPair4 = cryptoContext->MultipartyKeyGen(keyPair3.publicKey);
 
-    cryptoContext->EvalMultKeyGen(keyPair.secretKey);
-    cryptoContext->EvalRotateKeyGen(keyPair.secretKey, {1, 2, -1, -2});
-    cryptoContext->EvalSumKeyGen(keyPair.secretKey, keyPair.publicKey);
+    auto evalMultKey = cryptoContext->KeySwitchGen(keyPair.secretKey, keyPair.secretKey);
+    auto evalMultKey2 = cryptoContext->MultiKeySwitchGen(keyPair2.secretKey, keyPair2.secretKey, evalMultKey);
+    auto evalMultKey3 = cryptoContext->MultiKeySwitchGen(keyPair3.secretKey, keyPair3.secretKey, evalMultKey);
+    auto evalMultKey4 = cryptoContext->MultiKeySwitchGen(keyPair4.secretKey, keyPair4.secretKey, evalMultKey);
+
+    auto evalMult12 = cryptoContext->MultiAddEvalKeys(evalMultKey, evalMultKey2, keyPair2.publicKey->GetKeyTag());
+    auto evalMult123 = cryptoContext->MultiAddEvalKeys(evalMult12, evalMultKey3, keyPair3.publicKey->GetKeyTag());
+    auto evalMult1234 = cryptoContext->MultiAddEvalKeys(evalMult123, evalMultKey4, keyPair4.publicKey->GetKeyTag());
+
+    auto evalMult41234 = cryptoContext->MultiMultEvalKey(keyPair4.secretKey, evalMult1234, keyPair4.publicKey->GetKeyTag());
+    auto evalMult31234 = cryptoContext->MultiMultEvalKey(keyPair3.secretKey, evalMult1234, keyPair4.publicKey->GetKeyTag());
+    auto evalMult21234 = cryptoContext->MultiMultEvalKey(keyPair2.secretKey, evalMult1234, keyPair4.publicKey->GetKeyTag());
+    auto evalMult11234 = cryptoContext->MultiMultEvalKey(keyPair.secretKey, evalMult1234, keyPair4.publicKey->GetKeyTag());
+    
+    auto evalMult341234 = cryptoContext->MultiAddEvalMultKeys(evalMult41234, evalMult31234, evalMult41234->GetKeyTag());
+    auto evalMult2341234 = cryptoContext->MultiAddEvalMultKeys(evalMult21234, evalMult341234, evalMult21234->GetKeyTag());
+    auto evalMultFinal = cryptoContext->MultiAddEvalMultKeys(evalMult11234, evalMult2341234, keyPair4.publicKey->GetKeyTag());
+
+    cryptoContext->InsertEvalMultKey({evalMultFinal});
+
+    cryptoContext->EvalSumKeyGen(keyPair.secretKey);
+
+    auto evalSumKeys = std::make_shared<std::map<usint, EvalKey<DCRTPoly>>>(cryptoContext->GetEvalSumKeyMap(keyPair.secretKey->GetKeyTag()));
+    auto evalSumKeys2 = cryptoContext->MultiEvalSumKeyGen(keyPair2.secretKey, evalSumKeys, keyPair2.publicKey->GetKeyTag());
+    auto evalSumKeys3 = cryptoContext->MultiEvalSumKeyGen(keyPair3.secretKey, evalSumKeys, keyPair3.publicKey->GetKeyTag());
+    auto evalSumKeys4 = cryptoContext->MultiEvalSumKeyGen(keyPair4.secretKey, evalSumKeys, keyPair4.publicKey->GetKeyTag());
+
+
+    auto evalSumKeys12 = cryptoContext->MultiAddEvalSumKeys(evalSumKeys, evalSumKeys2, keyPair2.publicKey->GetKeyTag());
+    auto evalSumKeys123 = cryptoContext->MultiAddEvalSumKeys(evalSumKeys3, evalSumKeys12, keyPair3.publicKey->GetKeyTag());
+    auto evalSumKeysJoin = cryptoContext->MultiAddEvalSumKeys(evalSumKeys4, evalSumKeys123, keyPair4.publicKey->GetKeyTag());
+
+    cryptoContext->InsertEvalSumKey(evalSumKeysJoin);
 
     //Save the cryptocontext, encrypted data, public key and secret key
 
     saveCryptoContext(cryptoContext);
-    savePublicKey(keyPair.publicKey);
-    saveSecretKey(keyPair.secretKey);
-    saveRelinearizationKey(cryptoContext);
+    savePublicKey(keyPair4.publicKey);
+    saveSecretKey(keyPair.secretKey, 1);
+    saveSecretKey(keyPair2.secretKey, 2);
+    saveSecretKey(keyPair3.secretKey, 3);
+    saveSecretKey(keyPair4.secretKey, 4);
+    saveMulKey(cryptoContext);
     saveRotationKey(cryptoContext);
     saveSumKey(cryptoContext);
 
@@ -300,10 +404,10 @@ void generateCryptoContext(vector<string> fileNames, int multDepth){
     //Encrypt sample data
 
 
-    for (int i = 0; i < static_cast<int>(fileNames.size()); i++){
+    for (size_t i = 0; i < fileNames.size(); i++){
        
         string sampleFileName = fileNames[i];
-        encryptVCFData(sampleFileName, cryptoContext, keyPair.publicKey, i+1);
+        encryptVCFData(sampleFileName, cryptoContext, keyPair4.publicKey, i+1);
 
     }
 
@@ -314,3 +418,104 @@ void generateCryptoContext(vector<string> fileNames, int multDepth){
     lbcrypto::CryptoContextFactory<lbcrypto::DCRTPoly>::ReleaseAllContexts();
 }
 
+void generateCryptoContext8P(std::vector<std::string> fileNames, int multDepth) {
+    lbcrypto::CCParams<lbcrypto::CryptoContextBFVRNS> parameters;
+    parameters.SetPlaintextModulus(7340033);
+    parameters.SetMultiplicativeDepth(multDepth);
+    parameters.SetRingDim(65536);
+    // You might want to set other parameters for security, e.g., SetSecurityLevel, SetStandardDeviation, SetSecretKeyDist, SetBatchSize, SetDigitSize, SetScalingModSize, SetMultiplicationTechnique
+    // For simplicity, using only the ones you provided.
+    // parameters.SetSecurityLevel(lbcrypto::SecurityLevel::HEStd_128_classic);
+
+    lbcrypto::CryptoContext<lbcrypto::DCRTPoly> cryptoContext = lbcrypto::GenCryptoContext(parameters);
+   
+    std::cout << "Ring Dimension: " << cryptoContext->GetRingDimension() << std::endl;
+    // std::cout << "Security Level: " << parameters.GetSecurityLevel() << std::endl;
+
+    std::cout << "\np = " << cryptoContext->GetCryptoParameters()->GetPlaintextModulus() << std::endl;
+    std::cout << "n = " << cryptoContext->GetCryptoParameters()->GetElementParams()->GetCyclotomicOrder() / 2
+              << std::endl;
+    std::cout << "log2 q = "
+              << log2(cryptoContext->GetCryptoParameters()->GetElementParams()->GetModulus().ConvertToDouble())
+              << std::endl;
+   
+    cryptoContext->Enable(PKE);
+    cryptoContext->Enable(KEYSWITCH);
+    cryptoContext->Enable(LEVELEDSHE);
+    cryptoContext->Enable(ADVANCEDSHE);
+    cryptoContext->Enable(MULTIPARTY);
+
+    // Key Generation for 8 parties
+    lbcrypto::KeyPair<lbcrypto::DCRTPoly> keyPair[8]; // Array to hold key pairs
+    keyPair[0] = cryptoContext->KeyGen();
+    for (int i = 1; i < 8; ++i) {
+        keyPair[i] = cryptoContext->MultipartyKeyGen(keyPair[i-1].publicKey);
+    }
+    lbcrypto::PublicKey<lbcrypto::DCRTPoly> finalPublicKey = keyPair[7].publicKey; // Final combined public key
+
+    // EvalMult Key Generation for 8 parties
+    std::vector<lbcrypto::EvalKey<lbcrypto::DCRTPoly>> evalMultKeys(8);
+    evalMultKeys[0] = cryptoContext->KeySwitchGen(keyPair[0].secretKey, keyPair[0].secretKey);
+    for (int i = 1; i < 8; ++i) {
+        evalMultKeys[i] = cryptoContext->MultiKeySwitchGen(keyPair[i].secretKey, keyPair[i].secretKey, evalMultKeys[0]);
+    }
+
+    // Additive combination of EvalMult keys
+    lbcrypto::EvalKey<lbcrypto::DCRTPoly> currentAddEvalMultKey = evalMultKeys[0];
+    for (int i = 1; i < 8; ++i) {
+        currentAddEvalMultKey = cryptoContext->MultiAddEvalKeys(currentAddEvalMultKey, evalMultKeys[i], keyPair[i].publicKey->GetKeyTag());
+    }
+    
+    // Multiplicative combination for each party
+    std::vector<lbcrypto::EvalKey<lbcrypto::DCRTPoly>> multiplicativeEvalMultKeys(8);
+    for (int i = 0; i < 8; ++i) {
+        multiplicativeEvalMultKeys[i] = cryptoContext->MultiMultEvalKey(keyPair[i].secretKey, currentAddEvalMultKey, finalPublicKey->GetKeyTag());
+    }
+
+    // Final additive combination of multiplicative parts
+    lbcrypto::EvalKey<lbcrypto::DCRTPoly> evalMultFinal = multiplicativeEvalMultKeys[0];
+    for (int i = 1; i < 8; ++i) {
+        evalMultFinal = cryptoContext->MultiAddEvalMultKeys(evalMultFinal, multiplicativeEvalMultKeys[i], finalPublicKey->GetKeyTag());
+    }
+
+    cryptoContext->InsertEvalMultKey({evalMultFinal});
+
+    // EvalSum Key Generation for 8 parties
+    cryptoContext->EvalSumKeyGen(keyPair[0].secretKey);
+    auto evalSumKeyMap = std::make_shared<std::map<usint, EvalKey<DCRTPoly>>>(cryptoContext->GetEvalSumKeyMap(keyPair[0].secretKey->GetKeyTag()));
+    
+    std::vector<decltype(evalSumKeyMap)> individualEvalSumMaps(8);
+    individualEvalSumMaps[0] = evalSumKeyMap;
+    for (int i = 1; i < 8; ++i) {
+        individualEvalSumMaps[i] = cryptoContext->MultiEvalSumKeyGen(keyPair[i].secretKey, evalSumKeyMap, keyPair[i].publicKey->GetKeyTag());
+    }
+
+    // Final additive combination of EvalSum keys
+    auto evalSumKeysJoin = individualEvalSumMaps[0];
+    for (int i = 1; i < 8; ++i) {
+        evalSumKeysJoin = cryptoContext->MultiAddEvalSumKeys(evalSumKeysJoin, individualEvalSumMaps[i], finalPublicKey->GetKeyTag());
+    }
+    cryptoContext->InsertEvalSumKey(evalSumKeysJoin);
+
+    // Save the cryptocontext, encrypted data, public key and secret key
+    saveCryptoContext(cryptoContext);
+    savePublicKey(finalPublicKey); // Save the final combined public key
+    for (int i = 0; i < 8; ++i) {
+        saveSecretKey(keyPair[i].secretKey, i + 1);
+    }
+    saveMulKey(cryptoContext);
+    saveRotationKey(cryptoContext);
+    saveSumKey(cryptoContext);
+
+    // Encrypt sample data
+    for (size_t i = 0; i < fileNames.size(); ++i){
+        std::string sampleFileName = fileNames[i];
+        encryptVCFData(sampleFileName, cryptoContext, finalPublicKey, i + 1); // Encrypt with the final public key
+    }
+
+    // Clear the context and clear the keys
+    cryptoContext->ClearEvalMultKeys();
+    cryptoContext->ClearEvalAutomorphismKeys();
+    cryptoContext->ClearEvalSumKeys();
+    lbcrypto::CryptoContextFactory<lbcrypto::DCRTPoly>::ReleaseAllContexts();
+}
